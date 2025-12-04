@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# 환경 변수
+.env
+.env.local
+
+# 대용량 파일 (필요시 주석 해제)
+# models/*.bin
+# models/*.pt
+# data/*.csv
