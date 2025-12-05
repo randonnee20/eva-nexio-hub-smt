@@ -6,6 +6,23 @@ from typing import List
 
 class RAGEngine:
     def __init__(self):
+        # Render 환경 감지
+        self.is_render = os.getenv("RENDER") is not None
+        
+        if self.is_render:
+            # 배포 환경 - RAG 비활성화
+            print("⚠️  RAG disabled in production environment (Ollama not available)")
+            self.enabled = False
+            self.client = None
+            self.collection = None
+            self.ollama_url = None
+            self.embedding_model = None
+            self.llm_model = None
+            return
+        
+        # 로컬 환경 - RAG 활성화
+        print("✅ RAG enabled in local environment")
+        self.enabled = True
         self.ollama_url = "http://localhost:11434/api"
         self.embedding_model = "nomic-embed-text"
         self.llm_model = "bllossom"  # Bllossom/llama-3.2-Korean-Bllossom-3B
@@ -28,6 +45,9 @@ class RAGEngine:
     
     async def get_embedding(self, text: str) -> List[float]:
         """Ollama로 임베딩 생성"""
+        if not self.enabled:
+            return []
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{self.ollama_url}/embeddings",
@@ -40,6 +60,9 @@ class RAGEngine:
     
     async def add_document(self, text: str, metadata: dict = None):
         """문서 추가"""
+        if not self.enabled:
+            return {"success": False, "message": "RAG not available in production"}
+        
         # 텍스트를 청크로 분할 (500자 단위)
         chunks = [text[i:i+500] for i in range(0, len(text), 500)]
         
@@ -57,6 +80,9 @@ class RAGEngine:
     
     async def search(self, query: str, top_k: int = 3) -> List[dict]:
         """유사 문서 검색"""
+        if not self.enabled:
+            return []
+        
         query_embedding = await self.get_embedding(query)
         
         results = self.collection.query(
@@ -76,6 +102,9 @@ class RAGEngine:
     
     async def generate_answer(self, query: str, context: str) -> str:
         """LLM으로 답변 생성"""
+        if not self.enabled:
+            return "RAG 기능은 로컬 환경에서만 사용 가능합니다."
+        
         prompt = f"""다음 매뉴얼 내용을 참고하여 질문에 답변하세요.
 
 매뉴얼 내용:
@@ -98,6 +127,12 @@ class RAGEngine:
     
     async def query(self, query: str, top_k: int = 3) -> dict:
         """RAG 쿼리"""
+        if not self.enabled:
+            return {
+                'answer': 'RAG 기능은 로컬 환경에서만 사용 가능합니다. 배포 환경에서는 Ollama를 실행할 수 없습니다.',
+                'sources': []
+            }
+        
         # 관련 문서 검색
         documents = await self.search(query, top_k)
         
@@ -124,12 +159,25 @@ class RAGEngine:
     
     def get_document_count(self) -> int:
         """저장된 문서 수"""
-        return self.collection.count()
+        if not self.enabled or not self.collection:
+            return 0
+        
+        try:
+            return self.collection.count()
+        except:
+            return 0
     
     def clear_documents(self):
         """모든 문서 삭제"""
-        self.client.delete_collection("smt_manuals")
-        self.collection = self.client.create_collection("smt_manuals")
+        if not self.enabled or not self.client:
+            return {"success": False, "message": "RAG not available"}
+        
+        try:
+            self.client.delete_collection("smt_manuals")
+            self.collection = self.client.create_collection("smt_manuals")
+            return {"success": True, "message": "문서가 삭제되었습니다."}
+        except Exception as e:
+            return {"success": False, "message": f"삭제 실패: {str(e)}"}
 
 
 # 초기 매뉴얼 생성
