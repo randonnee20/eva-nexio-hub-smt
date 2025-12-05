@@ -1,0 +1,49 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # UTC 기준: 매 6시간마다 (한국시간 기준: 09:00, 15:00, 21:00, 03:00)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # 수동 실행 버튼 활성화
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: Backend 핑 (1차)
+        run: |
+          echo "🔄 Backend 핑 중..."
+          curl -f https://eva-nexio-hub-smt.onrender.com/health || \
+          echo "⚠️ Backend 응답 없음 (정상 - 첫 시작)"
+        continue-on-error: true
+      
+      - name: Frontend 핑 (1차)
+        run: |
+          echo "🔄 Frontend 핑 중..."
+          curl -f https://eva-nexio-hub-smt-frontend.onrender.com || \
+          echo "⚠️ Frontend 응답 없음 (정상 - 첫 시작)"
+        continue-on-error: true
+      
+      - name: 대기 (20초)
+        run: |
+          echo "⏳ 서버 시작 대기 중..."
+          sleep 20
+      
+      - name: Backend 핑 (2차)
+        run: |
+          echo "✅ Backend 재확인 중..."
+          curl -f https://eva-nexio-hub-smt.onrender.com/health || exit 0
+        continue-on-error: true
+      
+      - name: Frontend 핑 (2차)
+        run: |
+          echo "✅ Frontend 재확인 중..."
+          curl -f https://eva-nexio-hub-smt-frontend.onrender.com || exit 0
+        continue-on-error: true
+      
+      - name: 완료
+        run: echo "✨ Keep-alive 완료!"
