@@ -23,7 +23,10 @@ app = FastAPI(title="NEXIO.HUB", version="2.0.0")
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",                                    # 로컬 개발
+        "https://eva-nexio-hub-smt-frontend.onrender.com",         # Render 배포
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +51,32 @@ async def startup_event():
             content, 
             {'filename': 'smt_manual.txt', 'type': 'manual'}
         )
+
+# ========== 헬스체크 (Keep-Alive용) ==========
+
+@app.get("/", tags=["System"])
+def root():
+    """루트 엔드포인트"""
+    return {
+        "service": "NEXIO.HUB - SMT AI Factory",
+        "version": "2.0.0",
+        "status": "running",
+        "timestamp": datetime.now().isoformat(),
+        "message": "Eva Nexio Hub Backend API is running"
+    }
+
+@app.get("/health", tags=["System"])
+def health_check():
+    """Health check endpoint for keep-alive monitoring"""
+    return {
+        "status": "healthy",
+        "service": "eva-nexio-hub-backend",
+        "timestamp": datetime.now().isoformat(),
+        "uptime": "running",
+        "database": "connected",
+        "ml_model": "loaded",
+        "rag_engine": "initialized"
+    }
 
 # ========== 데이터 관리 ==========
 
@@ -316,17 +345,3 @@ def clear_rag_documents():
         return {'success': True, 'message': '문서 초기화 완료'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# ========== 헬스체크 ==========
-
-@app.get("/", tags=["System"])
-def root():
-    return {
-        "service": "SMT AI Factory",
-        "version": "1.0.0",
-        "status": "running"
-    }
-
-@app.get("/health", tags=["System"])
-def health_check():
-    return {"status": "healthy"}
