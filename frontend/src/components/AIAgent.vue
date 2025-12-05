@@ -186,7 +186,7 @@
 
 <script>
 import { ref } from 'vue'
-import axios from 'axios'
+import axios from '@/api'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
